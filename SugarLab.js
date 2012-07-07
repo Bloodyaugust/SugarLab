@@ -1,13 +1,3 @@
-function include(file)
-{
-    var script  = document.createElement('script');
-    script.src  = file;
-    script.type = 'text/javascript';
-    script.defer = true;
- 
-    document.getElementsByTagName('head').item(0).appendChild(script);
-}
-
 Object.prototype.clone = function() {
     var newObj = (this instanceof Array) ? [] : {};
     for (i in this) {
@@ -24,9 +14,9 @@ function game()
 {
     this.canvas = document.getElementById('gameCanvas');
     this.sctx = this.canvas.getContext("2d");
-    this.windowSize = new point(this.canvas.width, this.canvas.height);
+    this.screenSize = new point(this.canvas.width, this.canvas.height);
     this.startTime = new Date().getTime();
-    this.lastFrameTime = this.startTime;
+    this.lastFrameTime = 0;
     this.deltaTime = 0;
     this.fps = 0;
     this.deltaBuffer = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
@@ -34,14 +24,13 @@ function game()
     
     window.addEventListener("keydown", this.handleKeyDown.bind(this), false);
     window.addEventListener("keyup", this.handleKeyUp.bind(this), false);
-    
     window.setInterval(function() {
         update();
     }, 1);
 }
 
 game.prototype.update = function() {
-    var now = new Date().getTime();
+    var now = new Date;
     this.deltaTime = now - this.lastFrameTime;
     this.lastFrameTime = now;
     
@@ -91,6 +80,13 @@ game.prototype.isKeyDown = function (keyCode)
     }
 	
     return false;
+}
+
+game.prototype.clearScreen = function (clearColor)
+{
+    this.sctx.fillStyle = clearColor;
+    this.sctx.rect(0, 0, this.screenSize.x, this.screenSize.x);
+    this.sctx.fill();
 }
 
 function point(x, y)
@@ -169,7 +165,7 @@ polygon.prototype.update = function()
     }
         
     this.lines = [];
-    for (var i = 0; i < this.points.length; i++)
+    for (i = 0; i < this.points.length; i++)
     {
         if (i != this.points.length - 1)
         {
@@ -190,7 +186,7 @@ polygon.prototype.draw = function(sctx)
     sctx.lineWidth = this.width;
     sctx.beginPath();
     sctx.moveTo(this.points[0].x, this.points[0].y);
-    for (i = 1; i < this.points.length; i++)
+    for (var i = 1; i < this.points.length; i++)
     {
         sctx.lineTo(this.points[i].x, this.points[i].y);
     }
@@ -236,116 +232,16 @@ polygon.prototype.intersect = function(poly2)
     return false;
 }
 
-playerStructure = [];
-playerStructure[0] = new point(25, 0);
-playerStructure[1] = new point(50, 50);
-playerStructure[2] = new point(0, 50);
-playerPolygon = new polygon(new point(0, 0), new point(25, 25), playerStructure);
-
-polygons = [];
-
-function start()
-{
-    testGame = new game();
-    testGame.sctx.fillStyle = "lightBlue";
-    testGame.sctx.rect(0, 0, 800, 800);
-    testGame.sctx.fill();
-        
-    playerPolygon.color = "blue";
-    playerPolygon.width = 1;
-        
-    playerStructure = [];
-    playerStructure[0] = new point(25, 0);
-    playerStructure[1] = new point(50, 50);
-    playerStructure[2] = new point(0, 50);
-        
-    for (var i = 0; i < 1000; i++)
-    {
-        polygons[i] = new polygon(randomPoint(), new point(25, 25), playerStructure);
-    }
-    console.log(polygons.length);
-}
-
 function randomPoint()
 {
     return new point(Math.floor(Math.random() * 500), Math.floor(Math.random() * 500));
 }
 
-function update()
-{
-    testGame.update();
-    
-    if (testGame.isKeyDown(87)) //W
-        playerPolygon.translate(new point(0, -0.1 * testGame.deltaTime));
-	
-    if (testGame.isKeyDown(83)) //S
-        playerPolygon.translate(new point(0, 0.1 * testGame.deltaTime));
-	
-    if (testGame.isKeyDown(65)) //A
-        playerPolygon.translate(new point(-0.1 * testGame.deltaTime, 0));
-	
-    if (testGame.isKeyDown(68)) //D
-        playerPolygon.translate(new point(0.1 * testGame.deltaTime, 0));
-	
-    if (testGame.isKeyDown(81)) //Q
-    {
-        playerPolygon.rotate(-0.1 * testGame.deltaTime);
-    }
-	
-    if (testGame.isKeyDown(69)) //E
-    {
-        playerPolygon.rotate(0.1 * testGame.deltaTime);
-    }
-            
-    playerPolygon.update();
-        
-    for (var i = 0; i < polygons.length; i++)
-    {
-        polygons[i].update();
-    }
-            
-    //Test intersection code
-    var doesIntersect = false;
-    for (var i = 0; i < polygons.length; i++)
-    {
-        if (playerPolygon.intersect(polygons[i]) != false)
-            doesIntersect = true;
-    }
-            
-    if (doesIntersect)
-        playerPolygon.color = 'red';
-    else 
-        playerPolygon.color = 'blue';
-        
-    draw(testGame.sctx);
-}
-
-function draw(sctx)
-{
-    clear(sctx);
-	
-    playerPolygon.draw(sctx);
-        
-    for (var i = 0; i < polygons.length; i++)
-    {
-        polygons[i].draw(sctx);
-    }
-	
-    drawText("FPS: " + testGame.fps, 600, 200, 'green', sctx);
-}
-
-function clear(sctx)
-{
-    sctx.fillStyle = "lightBlue";
-    sctx.rect(0, 0, 800, 800);
-    sctx.fill();
-}
-
-function drawText(text, x, y, color, sctx)
+function drawText(text, location, color, sctx)
 {
     sctx.fillStyle = color;
     sctx.font = '30px Sans-Serif';
-    sctx.fillText(text, x, y);
+    sctx.fillText(text, location.x, location.y);
 }
 
 
