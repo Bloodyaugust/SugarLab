@@ -19,11 +19,18 @@ function game()
     this.lastFrameTime = 0;
     this.deltaTime = 0;
     this.fps = 0;
+    this.framesThisSecond = 0;
+    this.lastFrameAggregation = new Date;
     this.deltaBuffer = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
     this.keysDown = [];
+    this.mouseLocation = new point(0, 0);
+    this.mouseButton = 0;
     
     window.addEventListener("keydown", this.handleKeyDown.bind(this), false);
     window.addEventListener("keyup", this.handleKeyUp.bind(this), false);
+    this.canvas.addEventListener("mousemove", this.handleMouseMove.bind(this), false);
+    this.canvas.addEventListener("mousedown", this.handleMouseDown.bind(this), false);
+    this.canvas.addEventListener("mouseup", this.handleMouseUp.bind(this), false);
     window.setInterval(function() {
         update();
     }, 1);
@@ -31,7 +38,7 @@ function game()
 
 game.prototype.update = function() {
     var now = new Date;
-    this.deltaTime = now - this.lastFrameTime;
+    this.deltaTime = (now - this.lastFrameTime) / 1000;
     this.lastFrameTime = now;
     
     this.deltaBuffer.shift();
@@ -43,7 +50,13 @@ game.prototype.update = function() {
         avgDelta += this.deltaBuffer[i];
     }
     avgDelta = avgDelta / dBufLength;
-    this.fps = Math.floor(1000 / avgDelta);
+    
+    this.framesThisSecond++;
+    if (now - this.lastFrameAggregation >= 1000) {
+        this.fps = this.framesThisSecond;
+        this.framesThisSecond = 0;
+        this.lastFrameAggregation = now;
+    }
 }
 
 game.prototype.handleKeyDown = function (event)
@@ -71,6 +84,21 @@ game.prototype.handleKeyUp = function (event)
     }
 }
 
+game.prototype.handleMouseMove = function (event)
+{
+    this.mouseLocation = new point(event.clientX - 7, event.clientY - 7); //Sevens account for mouse hotspot offset
+}
+
+game.prototype.handleMouseDown = function (event)
+{
+    this.mouseButton = event.keyCode;
+}
+
+game.prototype.handleMouseUp = function (event)
+{
+    this.mouseButton = 0;
+}
+
 game.prototype.isKeyDown = function (keyCode)
 {
     for (var i = 0; i < this.keysDown.length; i++)
@@ -79,6 +107,23 @@ game.prototype.isKeyDown = function (keyCode)
             return true;
     }
 	
+    return false;
+}
+
+game.prototype.isMouseButtonDown = function (mouseButton)
+{
+    if (this.mouseButton === 1 && mouseButton === 'left') {
+        return true;
+    }
+    
+    if (this.mouseButton === 2 && mouseButton === 'middle') {
+        return true;
+    }
+    
+    if (this.mouseButton === 3 && mouseButton === 'right') {
+        return true;
+    }
+    
     return false;
 }
 
@@ -93,6 +138,29 @@ function point(x, y)
 {
     this.x = x;
     this.y = y;
+}
+
+point.prototype.translate = function (translateBy)
+{
+    this.x += translateBy.x;
+    this.y += translateBy.y;
+}
+
+point.prototype.getRotated = function (origin, angle)
+{
+    var cos = Math.cos(angle * 0.0174532925);
+    var sin = Math.sin(angle * 0.0174532925);
+        
+    var newX = this.x - origin.x;
+    var newY = this.y - origin.y;
+            
+    var rotatedX = newX * cos - newY * sin;
+    var rotatedY = newX * sin + newY * cos;
+        
+    var finalX = rotatedX + origin.x;
+    var finalY = rotatedY + origin.y;
+    
+    return new point(finalX, finalY);
 }
 
 function line(p1, p2)
@@ -134,9 +202,9 @@ function polygon(location, origin, structure)
     this.color = "black";
     this.width = 1;
     this.structurePoints = structure.clone();
-    this.points = structure.clone();
+    this.points = this.structurePoints.clone(); //Re-write to add location
     this.lines = [];
-    for (var i = 0; i < this.points.length; i++)
+    for (i = 0; i < this.points.length; i++)
     {
         if (i != this.points.length - 1)
         {
@@ -154,14 +222,9 @@ polygon.prototype.update = function()
 {
     for (var i = 0; i < this.points.length; i++)
     {
-        var newX = this.structurePoints[i].x + this.location.x;
-        var newY = this.structurePoints[i].y + this.location.y;
-        var translatedOrigin = new point(this.origin.x + this.location.x, this.origin.y + this.location.y);
-            
-        var rotatedX = Math.cos(this.rotation * 0.0174532925) * (newX - translatedOrigin.x) - Math.sin(this.rotation * 0.0174532925) * (newY - translatedOrigin.y) + translatedOrigin.x;
-        var rotatedY = Math.sin(this.rotation * 0.0174532925) * (newX - translatedOrigin.x) + Math.cos(this.rotation * 0.0174532925) * (newY - translatedOrigin.y) + translatedOrigin.y;
-            
-        this.points[i] = new point(rotatedX, rotatedY);
+        var newPoint = this.structurePoints[i].getRotated(this.origin, this.rotation);
+        newPoint.translate(this.location);
+        this.points[i] = newPoint.clone();
     }
         
     this.lines = [];
