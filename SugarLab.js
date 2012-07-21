@@ -23,8 +23,10 @@ function game()
     this.lastFrameAggregation = new Date;
     this.deltaBuffer = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
     this.keysDown = [];
+    this.keysDownThisFrame = [];
     this.mouseLocation = new point(0, 0);
     this.mouseButton = 0;
+    this.mouseDownThisFrame = 0;
     
     window.addEventListener("keydown", this.handleKeyDown.bind(this), false);
     window.addEventListener("keyup", this.handleKeyUp.bind(this), false);
@@ -34,6 +36,8 @@ function game()
     window.setInterval(function() {
         update();
     }, 1);
+    
+    this.sctx.fillStyle = 'rgb(0, 0, 0)';
 }
 
 game.prototype.update = function() {
@@ -57,6 +61,11 @@ game.prototype.update = function() {
         this.framesThisSecond = 0;
         this.lastFrameAggregation = now;
     }
+    
+    this.mouseDownThisFrame -= 1;
+    
+    if (this.mouseDownThisFrame < 0)
+        this.mouseDownThisFrame = 0;
 }
 
 game.prototype.handleKeyDown = function (event)
@@ -66,12 +75,15 @@ game.prototype.handleKeyDown = function (event)
 	
     for (var i = 0; i < this.keysDown.length; i++)
     {
-        if (this.keysDown[i] === keyCode)
+        if (this.keysDown[i] === keyCode) {
             alreadyCaptured = true;
+        }
     }
 	
-    if (!alreadyCaptured)
+    if (!alreadyCaptured) {
+        this.keysDownThisFrame.push(keyCode);
         this.keysDown.push(keyCode);
+    }
 }
 
 game.prototype.handleKeyUp = function (event)
@@ -91,10 +103,12 @@ game.prototype.handleMouseMove = function (event)
 
 game.prototype.handleMouseDown = function (event)
 {
+    this.mouseDownThisFrame += 2;
+    
     this.mouseButton = event.keyCode;
 }
 
-game.prototype.handleMouseUp = function (event)
+game.prototype.handleMouseUp = function ()
 {
     this.mouseButton = 0;
 }
@@ -127,11 +141,20 @@ game.prototype.isMouseButtonDown = function (mouseButton)
     return false;
 }
 
+game.prototype.onMouseDown = function() 
+{
+    if (this.mouseDownThisFrame > 0) 
+        return true;
+    return false;
+}
+
 game.prototype.clearScreen = function (clearColor)
 {
+    this.sctx.save();
     this.sctx.fillStyle = clearColor;
     this.sctx.rect(0, 0, this.screenSize.x, this.screenSize.x);
     this.sctx.fill();
+    this.sctx.restore();
 }
 
 function point(x, y)
@@ -161,6 +184,24 @@ point.prototype.getRotated = function (origin, angle)
     var finalY = rotatedY + origin.y;
     
     return new point(finalX, finalY);
+}
+
+point.prototype.distance = function (p2)
+{
+    return Math.sqrt(((p2.x - this.x) * (p2.x - this.x)) + ((p2.y - this.y) * (p2.y - this.y)));
+}
+
+point.prototype.equals = function (p2)
+{
+    if (this.x === p2.x && this.y === p2.y)
+        return true;
+    return false;
+}
+
+point.prototype.add = function (p2)
+{
+    this.x += p2.x;
+    this.y += p2.y;
 }
 
 function line(p1, p2)
@@ -194,13 +235,44 @@ line.prototype.intersect = function (L2)
     return false;
 }
 
+function rectangle(location, size)
+{
+    this.location = location.clone();
+    this.size = size.clone();
+    this.points = [
+        new point(location.x, location.y), new point(location.x + size.x, location.y), new point(location.x + size.x, location.y + size.y), new point(location.x, location.y + size.y)
+    ];
+    this.lines = [
+        new line(this.points[0], this.points[1]), new line(this.points[1], this.points[2]), new line(this.points[2], this.points[3]), new line(this.points[3], this.points[0])
+    ];
+}
+
+rectangle.prototype.intersect = function (r2)
+{
+    if (this.location.x > r2.location.x + this.size.x || this.location.x + this.size.x < r2.location.x || this.location.y > r2.location.y + this.size.y || this.location.y + this.size.y < r2.location.y)
+        return true;
+    return false;
+}
+
+rectangle.prototype.transform = function (transform)
+{
+    this.location.add(transform);
+    this.points = [
+        new point(this.location.x, this.location.y), new point(this.location.x + this.size.x, this.location.y), 
+        new point(this.location.x + this.size.x, this.location.y + this.size.y), new point(this.location.x, this.location.y + this.size.y)
+    ];
+    this.lines = [
+        new line(this.points[0], this.points[1]), new line(this.points[1], this.points[2]), new line(this.points[2], this.points[3]), new line(this.points[3], this.points[0])
+    ];
+}
+
 function polygon(location, origin, structure)
 {
     this.location = location.clone();
     this.rotation = 0;
     this.origin = origin.clone();
     this.color = "black";
-    this.width = 1;
+    this.width = 2;
     this.structurePoints = structure.clone();
     this.points = this.structurePoints.clone(); //Re-write to add location
     this.lines = [];
@@ -302,9 +374,28 @@ function randomPoint()
 
 function drawText(text, location, color, sctx)
 {
-    sctx.fillStyle = color;
+    sctx.save();
     sctx.font = '30px Sans-Serif';
+    sctx.fillStyle = color;
     sctx.fillText(text, location.x, location.y);
+    sctx.restore();
+}
+
+function getLines(points) 
+{
+    var lines = [];
+    for (var i = 0; i < points.length; i++) {
+        if (i != points.length - 1)
+        {
+            lines.push(new line(points[i], points[i+1]));
+        }
+                
+        else 
+        {
+            lines.push (new line(points[i], points[0]));
+        }
+    }
+    return lines;
 }
 
 
