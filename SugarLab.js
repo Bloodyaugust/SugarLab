@@ -1,6 +1,6 @@
 Object.prototype.clone = function() {
     var newObj = (this instanceof Array) ? [] : {};
-    for (i in this) {
+    for (var i in this) {
         if (i === 'clone') continue;
         if (this[i] && typeof this[i] === "object") {
             newObj[i] = this[i].clone();
@@ -9,6 +9,23 @@ Object.prototype.clone = function() {
     }
     return newObj;
 };
+
+floatEquals = function(f1, f2, epsilon) {
+    if (Math.abs(f1 - f2) < epsilon)
+        return true;
+    return false;
+}
+
+requestAnimFrame = (function() {
+    return window.requestAnimationFrame ||
+    window.webkitRequestAnimationFrame ||
+    window.mozRequestAnimationFrame ||
+    window.oRequestAnimationFrame ||
+    window.msRequestAnimationFrame ||
+    function(/* function FrameRequestCallback */ callback, /* DOMElement Element */ element) {
+        window.setTimeout(callback, 1000/60);
+    };
+})();
 
 function game()
 {
@@ -23,21 +40,51 @@ function game()
     this.lastFrameAggregation = new Date;
     this.deltaBuffer = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
     this.keysDown = [];
-    this.keysDownThisFrame = [];
+    this.keysDownLength = [];
     this.mouseLocation = new point(0, 0);
-    this.mouseButton = 0;
+    this.mouseButton = 3;
     this.mouseDownThisFrame = 0;
+    this.browser = '';
     
     window.addEventListener("keydown", this.handleKeyDown.bind(this), false);
     window.addEventListener("keyup", this.handleKeyUp.bind(this), false);
     this.canvas.addEventListener("mousemove", this.handleMouseMove.bind(this), false);
     this.canvas.addEventListener("mousedown", this.handleMouseDown.bind(this), false);
     this.canvas.addEventListener("mouseup", this.handleMouseUp.bind(this), false);
-    window.setInterval(function() {
-        update();
-    }, 1);
+    
+    if(window.mozRequestAnimationFrame) {
+        this.browser = 'mozilla';
+        window.mozRequestAnimationFrame(update);
+    }
+    
+    else
+    if(window.webkitRequestAnimationFrame) {
+        this.browser = 'webkit';
+        window.webkitRequestAnimationFrame(update);
+    }
+            
+    else {
+        this.browser = 'ie';
+        window.setInterval(function() {
+            update();
+        }, 1);
+    }
     
     this.sctx.fillStyle = 'rgb(0, 0, 0)';
+}
+
+game.prototype.loop = function() {
+    if (this.browser === 'mozilla') {
+        window.mozRequestAnimationFrame(update);
+    }
+    
+    if (this.browser === 'webkit') {
+        window.webkitRequestAnimationFrame(update);
+    }
+    
+    if (this.browser === 'ie') {
+        
+    }
 }
 
 game.prototype.update = function() {
@@ -66,6 +113,10 @@ game.prototype.update = function() {
     
     if (this.mouseDownThisFrame < 0)
         this.mouseDownThisFrame = 0;
+    
+    for (i = 0; i < this.keysDownLength.length; i++) {
+        this.keysDownLength[i]++;
+    }
 }
 
 game.prototype.handleKeyDown = function (event)
@@ -81,7 +132,7 @@ game.prototype.handleKeyDown = function (event)
     }
 	
     if (!alreadyCaptured) {
-        this.keysDownThisFrame.push(keyCode);
+        this.keysDownLength.push(0);
         this.keysDown.push(keyCode);
     }
 }
@@ -91,8 +142,10 @@ game.prototype.handleKeyUp = function (event)
     var keyCode = event.keyCode;
     for (var i = 0; i < this.keysDown.length; i++)
     {
-        if (this.keysDown[i] === keyCode)
+        if (this.keysDown[i] === keyCode) {
+            this.keysDownLength.splice(i, 1);
             this.keysDown.splice(i, 1);
+        }
     }
 }
 
@@ -105,12 +158,12 @@ game.prototype.handleMouseDown = function (event)
 {
     this.mouseDownThisFrame += 2;
     
-    this.mouseButton = event.keyCode;
+    this.mouseButton = event.button;
 }
 
 game.prototype.handleMouseUp = function ()
 {
-    this.mouseButton = 0;
+    this.mouseButton = 3;
 }
 
 game.prototype.isKeyDown = function (keyCode)
@@ -124,17 +177,29 @@ game.prototype.isKeyDown = function (keyCode)
     return false;
 }
 
-game.prototype.isMouseButtonDown = function (mouseButton)
+game.prototype.onKeyDown = function (keyCode)
 {
-    if (this.mouseButton === 1 && mouseButton === 'left') {
+    for (var i = 0; i < this.keysDown.length; i++)
+    {
+        if (this.keysDown[i] === keyCode)
+            if (this.keysDownLength[i] === 1)
+                return true;
+    }
+	
+    return false;
+}
+
+game.prototype.isMouseDown = function (mouseButton)
+{
+    if (this.mouseButton === 0 && mouseButton === 'left') {
         return true;
     }
     
-    if (this.mouseButton === 2 && mouseButton === 'middle') {
+    if (this.mouseButton === 1 && mouseButton === 'middle') {
         return true;
     }
     
-    if (this.mouseButton === 3 && mouseButton === 'right') {
+    if (this.mouseButton === 2 && mouseButton === 'right') {
         return true;
     }
     
@@ -198,19 +263,13 @@ point.prototype.equals = function (p2)
     return false;
 }
 
-point.prototype.add = function (p2)
-{
-    this.x += p2.x;
-    this.y += p2.y;
-}
-
 function line(p1, p2)
 {
     this.p1 = p1;
     this.p2 = p2;
 }
 
-line.prototype.intersect = function (L2) 
+line.prototype.intersects = function (L2) 
 {
     var d = (L2.p2.y - L2.p1.y) * (this.p2.x - this.p1.x) - (L2.p2.x - L2.p1.x) * (this.p2.y - this.p1.y);
     
@@ -239,31 +298,70 @@ function rectangle(location, size)
 {
     this.location = location.clone();
     this.size = size.clone();
+    this.color = 'black';
     this.points = [
-        new point(location.x, location.y), new point(location.x + size.x, location.y), new point(location.x + size.x, location.y + size.y), new point(location.x, location.y + size.y)
+    new point(location.x, location.y), new point(location.x + size.x, location.y), new point(location.x + size.x, location.y + size.y), new point(location.x, location.y + size.y)
     ];
     this.lines = [
-        new line(this.points[0], this.points[1]), new line(this.points[1], this.points[2]), new line(this.points[2], this.points[3]), new line(this.points[3], this.points[0])
+    new line(this.points[0], this.points[1]), new line(this.points[1], this.points[2]), new line(this.points[2], this.points[3]), new line(this.points[3], this.points[0])
     ];
+    this.origin = new point(this.location.x + this.size.x / 2, this.location.y + this.size.y / 2);
 }
 
-rectangle.prototype.intersect = function (r2)
+rectangle.prototype.draw = function (sctx)
 {
-    if (this.location.x > r2.location.x + this.size.x || this.location.x + this.size.x < r2.location.x || this.location.y > r2.location.y + this.size.y || this.location.y + this.size.y < r2.location.y)
-        return true;
-    return false;
+    sctx.save();
+    sctx.strokeStyle = this.color;
+    sctx.lineWidth = 2;
+    sctx.beginPath();
+    sctx.moveTo(this.location.x, this.location.y);
+    sctx.lineTo(this.location.x + this.size.x - 1, this.location.y);
+    sctx.lineTo(this.location.x + this.size.x - 1, this.location.y + this.size.y - 1);
+    sctx.lineTo(this.location.x, this.location.y + this.size.y - 1);
+    sctx.closePath();
+    sctx.stroke();
+    sctx.restore();
+}
+
+rectangle.prototype.intersects = function (r2)
+{
+    if (this.location.x > r2.location.x + r2.size.x || this.location.x + this.size.x < r2.location.x || this.location.y > r2.location.y + r2.size.y || this.location.y + this.size.y < r2.location.y)
+        return false;
+    return true;
 }
 
 rectangle.prototype.transform = function (transform)
 {
     this.location.add(transform);
     this.points = [
-        new point(this.location.x, this.location.y), new point(this.location.x + this.size.x, this.location.y), 
-        new point(this.location.x + this.size.x, this.location.y + this.size.y), new point(this.location.x, this.location.y + this.size.y)
+    new point(this.location.x, this.location.y), new point(this.location.x + this.size.x, this.location.y), 
+    new point(this.location.x + this.size.x, this.location.y + this.size.y), new point(this.location.x, this.location.y + this.size.y)
     ];
     this.lines = [
-        new line(this.points[0], this.points[1]), new line(this.points[1], this.points[2]), new line(this.points[2], this.points[3]), new line(this.points[3], this.points[0])
+    new line(this.points[0], this.points[1]), new line(this.points[1], this.points[2]), new line(this.points[2], this.points[3]), new line(this.points[3], this.points[0])
     ];
+}
+
+rectangle.prototype.setLocation = function (location)
+{
+    this.location = location.clone();
+    this.points = [
+    new point(this.location.x, this.location.y), new point(this.location.x + this.size.x, this.location.y), 
+    new point(this.location.x + this.size.x, this.location.y + this.size.y), new point(this.location.x, this.location.y + this.size.y)
+    ];
+    this.lines = [
+    new line(this.points[0], this.points[1]), new line(this.points[1], this.points[2]), new line(this.points[2], this.points[3]), new line(this.points[3], this.points[0])
+    ];
+}
+
+rectangle.prototype.equals = function (r2)
+{
+    for (var i = 0; i < this.points.length; i++) {
+        if (!this.points[i].equals(r2.points[i])) 
+            return false;
+    }
+    
+    return true;
 }
 
 function polygon(location, origin, structure)
@@ -351,13 +449,13 @@ polygon.prototype.rotate = function(rotateBy)
     }
 }
 
-polygon.prototype.intersect = function(poly2)
+polygon.prototype.intersects = function(poly2)
 {
     for (var i = 0; i < this.lines.length; i++)
     {
         for (i2 = 0; i2 < poly2.lines.length; i2++)
         {
-            var doesIntersect = this.lines[i].intersect(poly2.lines[i2]);
+            var doesIntersect = this.lines[i].intersects(poly2.lines[i2]);
                     
             if (doesIntersect != false)
                 return doesIntersect;
@@ -397,8 +495,3 @@ function getLines(points)
     }
     return lines;
 }
-
-
-
-
-
