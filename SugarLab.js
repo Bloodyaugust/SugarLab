@@ -10,8 +10,21 @@ Object.prototype.clone = function() {
     return newObj;
 };
 
-floatEquals = function(f1, f2, epsilon) {
-    if (Math.abs(f1 - f2) < epsilon)
+Array.prototype.last = function() {
+    return this[this.length - 1];
+}
+    
+Array.prototype.lastIndex = function() {
+    return this.length - 1;
+}
+
+var toType = function(obj) {
+  return ({}).toString.call(obj).match(/\s([a-zA-Z]+)/)[1].toLowerCase()
+}
+
+
+floatEquals = function(f1, f2) {
+    if (Math.abs(f1 - f2) < 0.00000001)
         return true;
     return false;
 }
@@ -44,6 +57,7 @@ function game()
     this.mouseLocation = new point(0, 0);
     this.mouseButton = 3;
     this.mouseDownThisFrame = 0;
+    this.mouseUpThisFrame = 0;
     this.browser = '';
     
     window.addEventListener("keydown", this.handleKeyDown.bind(this), false);
@@ -110,9 +124,12 @@ game.prototype.update = function() {
     }
     
     this.mouseDownThisFrame -= 1;
+    this.mouseUpThisFrame -= 1;
     
     if (this.mouseDownThisFrame < 0)
         this.mouseDownThisFrame = 0;
+    if (this.mouseUpThisFrame < 0)
+        this.mouseUpThisFrame = 0;
     
     for (i = 0; i < this.keysDownLength.length; i++) {
         this.keysDownLength[i]++;
@@ -163,6 +180,8 @@ game.prototype.handleMouseDown = function (event)
 
 game.prototype.handleMouseUp = function ()
 {
+    this.mouseDownThisFrame += 2;
+    
     this.mouseButton = 3;
 }
 
@@ -213,6 +232,13 @@ game.prototype.onMouseDown = function()
     return false;
 }
 
+game.prototype.onMouseUp = function() 
+{
+    if (this.mouseUpThisFrame > 0) 
+        return true;
+    return false;
+}
+
 game.prototype.clearScreen = function (clearColor)
 {
     this.sctx.save();
@@ -226,6 +252,7 @@ function point(x, y)
 {
     this.x = x;
     this.y = y;
+    this.pName = 'point';
 }
 
 point.prototype.translate = function (translateBy)
@@ -306,18 +333,19 @@ function rectangle(location, size)
     new line(this.points[0], this.points[1]), new line(this.points[1], this.points[2]), new line(this.points[2], this.points[3]), new line(this.points[3], this.points[0])
     ];
     this.origin = new point(this.location.x + this.size.x / 2, this.location.y + this.size.y / 2);
+    this.pName = 'rectangle';
 }
 
 rectangle.prototype.draw = function (sctx)
 {
     sctx.save();
     sctx.strokeStyle = this.color;
-    sctx.lineWidth = 2;
+    sctx.lineWidth = 1;
     sctx.beginPath();
-    sctx.moveTo(this.location.x, this.location.y);
-    sctx.lineTo(this.location.x + this.size.x - 1, this.location.y);
-    sctx.lineTo(this.location.x + this.size.x - 1, this.location.y + this.size.y - 1);
-    sctx.lineTo(this.location.x, this.location.y + this.size.y - 1);
+    sctx.moveTo(Math.floor(this.location.x) + 0.5, Math.floor(this.location.y) + 0.5);
+    sctx.lineTo(Math.floor(this.location.x + this.size.x - 1) + 0.5, Math.floor(this.location.y) + 0.5);
+    sctx.lineTo(Math.floor(this.location.x + this.size.x - 1) + 0.5, Math.floor(this.location.y + this.size.y - 1) + 0.5);
+    sctx.lineTo(Math.floor(this.location.x) + 0.5, Math.floor(this.location.y + this.size.y - 1) + 0.5);
     sctx.closePath();
     sctx.stroke();
     sctx.restore();
