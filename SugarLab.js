@@ -19,7 +19,7 @@ Array.prototype.lastIndex = function() {
 }
 
 var toType = function(obj) {
-  return ({}).toString.call(obj).match(/\s([a-zA-Z]+)/)[1].toLowerCase()
+    return ({}).toString.call(obj).match(/\s([a-zA-Z]+)/)[1].toLowerCase()
 }
 
 
@@ -44,7 +44,7 @@ function game()
 {
     this.canvas = document.getElementById('gameCanvas');
     this.sctx = this.canvas.getContext("2d");
-    this.screenSize = new point(this.canvas.width, this.canvas.height);
+    this.screenSize = new vec2(this.canvas.width, this.canvas.height);
     this.startTime = new Date().getTime();
     this.lastFrameTime = 0;
     this.deltaTime = 0;
@@ -54,7 +54,7 @@ function game()
     this.deltaBuffer = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
     this.keysDown = [];
     this.keysDownLength = [];
-    this.mouseLocation = new point(0, 0);
+    this.mouseLocation = new vec2(0, 0);
     this.mouseButton = 3;
     this.mouseDownThisFrame = 0;
     this.mouseUpThisFrame = 0;
@@ -85,6 +85,12 @@ function game()
     }
     
     this.sctx.fillStyle = 'rgb(0, 0, 0)';
+}
+
+game.prototype.fullscreen = function() {
+    this.canvas.width = document.width;
+    this.canvas.height = document.height;
+    this.screenSize = new vec2(this.canvas.width, this.canvas.height);
 }
 
 game.prototype.loop = function() {
@@ -168,7 +174,7 @@ game.prototype.handleKeyUp = function (event)
 
 game.prototype.handleMouseMove = function (event)
 {
-    this.mouseLocation = new point(event.clientX - 7, event.clientY - 7); //Sevens account for mouse hotspot offset
+    this.mouseLocation = new vec2(event.clientX - 7, event.clientY - 7); //Sevens account for mouse hotspot offset
 }
 
 game.prototype.handleMouseDown = function (event)
@@ -248,20 +254,20 @@ game.prototype.clearScreen = function (clearColor)
     this.sctx.restore();
 }
 
-function point(x, y)
+function vec2(x, y)
 {
     this.x = x;
     this.y = y;
-    this.pName = 'point';
+    this.pName = 'vec2';
 }
 
-point.prototype.translate = function (translateBy)
+vec2.prototype.translate = function (translateBy)
 {
     this.x += translateBy.x;
     this.y += translateBy.y;
 }
 
-point.prototype.getRotated = function (origin, angle)
+vec2.prototype.getRotated = function (origin, angle)
 {
     var cos = Math.cos(angle * 0.0174532925);
     var sin = Math.sin(angle * 0.0174532925);
@@ -275,15 +281,15 @@ point.prototype.getRotated = function (origin, angle)
     var finalX = rotatedX + origin.x;
     var finalY = rotatedY + origin.y;
     
-    return new point(finalX, finalY);
+    return new vec2(finalX, finalY);
 }
 
-point.prototype.distance = function (p2)
+vec2.prototype.distance = function (p2)
 {
     return Math.sqrt(((p2.x - this.x) * (p2.x - this.x)) + ((p2.y - this.y) * (p2.y - this.y)));
 }
 
-point.prototype.equals = function (p2)
+vec2.prototype.equals = function (p2)
 {
     if (this.x === p2.x && this.y === p2.y)
         return true;
@@ -314,7 +320,7 @@ line.prototype.intersects = function (L2)
     {
         var x = this.p1.x + (ua * (this.p2.x - this.p1.x));
         var y = this.p1.y + (ua * (this.p2.y - this.p1.y));
-        var intersect = new point(x, y);
+        var intersect = new vec2(x, y);
         return intersect;
     }
          
@@ -326,13 +332,13 @@ function rectangle(location, size)
     this.location = location.clone();
     this.size = size.clone();
     this.color = 'black';
-    this.points = [
-    new point(location.x, location.y), new point(location.x + size.x, location.y), new point(location.x + size.x, location.y + size.y), new point(location.x, location.y + size.y)
+    this.vec2s = [
+    new vec2(location.x, location.y), new vec2(location.x + size.x, location.y), new vec2(location.x + size.x, location.y + size.y), new vec2(location.x, location.y + size.y)
     ];
     this.lines = [
-    new line(this.points[0], this.points[1]), new line(this.points[1], this.points[2]), new line(this.points[2], this.points[3]), new line(this.points[3], this.points[0])
+    new line(this.vec2s[0], this.vec2s[1]), new line(this.vec2s[1], this.vec2s[2]), new line(this.vec2s[2], this.vec2s[3]), new line(this.vec2s[3], this.vec2s[0])
     ];
-    this.origin = new point(this.location.x + this.size.x / 2, this.location.y + this.size.y / 2);
+    this.origin = new vec2(this.location.x + this.size.x / 2, this.location.y + this.size.y / 2);
     this.pName = 'rectangle';
 }
 
@@ -361,31 +367,31 @@ rectangle.prototype.intersects = function (r2)
 rectangle.prototype.transform = function (transform)
 {
     this.location.add(transform);
-    this.points = [
-    new point(this.location.x, this.location.y), new point(this.location.x + this.size.x, this.location.y), 
-    new point(this.location.x + this.size.x, this.location.y + this.size.y), new point(this.location.x, this.location.y + this.size.y)
+    this.vec2s = [
+    new vec2(this.location.x, this.location.y), new vec2(this.location.x + this.size.x, this.location.y), 
+    new vec2(this.location.x + this.size.x, this.location.y + this.size.y), new vec2(this.location.x, this.location.y + this.size.y)
     ];
     this.lines = [
-    new line(this.points[0], this.points[1]), new line(this.points[1], this.points[2]), new line(this.points[2], this.points[3]), new line(this.points[3], this.points[0])
+    new line(this.vec2s[0], this.vec2s[1]), new line(this.vec2s[1], this.vec2s[2]), new line(this.vec2s[2], this.vec2s[3]), new line(this.vec2s[3], this.vec2s[0])
     ];
 }
 
 rectangle.prototype.setLocation = function (location)
 {
     this.location = location.clone();
-    this.points = [
-    new point(this.location.x, this.location.y), new point(this.location.x + this.size.x, this.location.y), 
-    new point(this.location.x + this.size.x, this.location.y + this.size.y), new point(this.location.x, this.location.y + this.size.y)
+    this.vec2s = [
+    new vec2(this.location.x, this.location.y), new vec2(this.location.x + this.size.x, this.location.y), 
+    new vec2(this.location.x + this.size.x, this.location.y + this.size.y), new vec2(this.location.x, this.location.y + this.size.y)
     ];
     this.lines = [
-    new line(this.points[0], this.points[1]), new line(this.points[1], this.points[2]), new line(this.points[2], this.points[3]), new line(this.points[3], this.points[0])
+    new line(this.vec2s[0], this.vec2s[1]), new line(this.vec2s[1], this.vec2s[2]), new line(this.vec2s[2], this.vec2s[3]), new line(this.vec2s[3], this.vec2s[0])
     ];
 }
 
 rectangle.prototype.equals = function (r2)
 {
-    for (var i = 0; i < this.points.length; i++) {
-        if (!this.points[i].equals(r2.points[i])) 
+    for (var i = 0; i < this.vec2s.length; i++) {
+        if (!this.vec2s[i].equals(r2.vec2s[i])) 
             return false;
     }
     
@@ -399,43 +405,31 @@ function polygon(location, origin, structure)
     this.origin = origin.clone();
     this.color = "black";
     this.width = 2;
-    this.structurePoints = structure.clone();
-    this.points = this.structurePoints.clone(); //Re-write to add location
-    this.lines = [];
-    for (i = 0; i < this.points.length; i++)
-    {
-        if (i != this.points.length - 1)
-        {
-            this.lines.push(new line(this.points[i], this.points[i+1]));
-        }
-                
-        else 
-        {
-            this.lines.push (new line(this.points[i], this.points[0]));
-        }
-    }
+    this.structurevec2s = structure.clone();
+    this.vec2s = this.structurevec2s.clone(); 
+    this.update();
 }
 
 polygon.prototype.update = function()
 {
-    for (var i = 0; i < this.points.length; i++)
+    for (var i = 0; i < this.vec2s.length; i++)
     {
-        var newPoint = this.structurePoints[i].getRotated(this.origin, this.rotation);
-        newPoint.translate(this.location);
-        this.points[i] = newPoint.clone();
+        var newvec2 = this.structurevec2s[i].getRotated(this.origin, this.rotation);
+        newvec2.translate(this.location);
+        this.vec2s[i] = newvec2.clone();
     }
         
     this.lines = [];
-    for (i = 0; i < this.points.length; i++)
+    for (i = 0; i < this.vec2s.length; i++)
     {
-        if (i != this.points.length - 1)
+        if (i != this.vec2s.length - 1)
         {
-            this.lines.push(new line(this.points[i], this.points[i+1]));
+            this.lines.push(new line(this.vec2s[i], this.vec2s[i+1]));
         }
                 
         else 
         {
-            this.lines.push (new line(this.points[i], this.points[0]));
+            this.lines.push (new line(this.vec2s[i], this.vec2s[0]));
         }
     }
 }
@@ -446,10 +440,10 @@ polygon.prototype.draw = function(sctx)
     sctx.strokeStyle = this.color;
     sctx.lineWidth = this.width;
     sctx.beginPath();
-    sctx.moveTo(this.points[0].x, this.points[0].y);
-    for (var i = 1; i < this.points.length; i++)
+    sctx.moveTo(this.vec2s[0].x, this.vec2s[0].y);
+    for (var i = 1; i < this.vec2s.length; i++)
     {
-        sctx.lineTo(this.points[i].x, this.points[i].y);
+        sctx.lineTo(this.vec2s[i].x, this.vec2s[i].y);
     }
     sctx.closePath();
     sctx.stroke();
@@ -460,21 +454,53 @@ polygon.prototype.translate = function(translateBy)
 {
     this.location.x += translateBy.x;
     this.location.y += translateBy.y;
+    
+    this.update();
+}
+
+polygon.prototype.translateTo = function(translateTo)
+{
+    this.location = translateTo.clone();
+    
+    this.update();
 }
 
 polygon.prototype.rotate = function(rotateBy)
 {
     this.rotation += rotateBy;
+    
+    while(this.rotation > 360 || this.rotation < 0) {
+        if (this.rotation > 360)
+        {
+            this.rotation -= 360;
+        }
 	
-    if (this.rotation > 360)
-    {
-        this.rotation = this.rotation - 360;
+        if (this.rotation < 0)
+        {
+            this.rotation += 360;
+        }
     }
+    
+    this.update();
+}
+
+polygon.prototype.rotateTo = function(rotateTo)
+{
+    this.rotation = rotateTo;
+    
+    while(this.rotation > 360 || this.rotation < 0) {
+        if (this.rotation > 360)
+        {
+            this.rotation -= 360;
+        }
 	
-    if (this.rotation < 360)
-    {
-        this.rotation = 360 + this.rotation;
+        if (this.rotation < 0)
+        {
+            this.rotation += 360;
+        }
     }
+    
+    this.update();
 }
 
 polygon.prototype.intersects = function(poly2)
@@ -493,9 +519,9 @@ polygon.prototype.intersects = function(poly2)
     return false;
 }
 
-function randomPoint()
+function randomVec2()
 {
-    return new point(Math.floor(Math.random() * 500), Math.floor(Math.random() * 500));
+    return new vec2(Math.floor(Math.random() * 500), Math.floor(Math.random() * 500));
 }
 
 function drawText(text, location, color, sctx)
@@ -507,18 +533,18 @@ function drawText(text, location, color, sctx)
     sctx.restore();
 }
 
-function getLines(points) 
+function getLines(vec2s) 
 {
     var lines = [];
-    for (var i = 0; i < points.length; i++) {
-        if (i != points.length - 1)
+    for (var i = 0; i < vec2s.length; i++) {
+        if (i != vec2s.length - 1)
         {
-            lines.push(new line(points[i], points[i+1]));
+            lines.push(new line(vec2s[i], vec2s[i+1]));
         }
                 
         else 
         {
-            lines.push (new line(points[i], points[0]));
+            lines.push (new line(vec2s[i], vec2s[0]));
         }
     }
     return lines;
