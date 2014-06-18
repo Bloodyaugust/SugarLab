@@ -1,5 +1,5 @@
 Object.prototype.clone = function () {
-    var newObj = (this instanceof Array) ? [] : {};
+    var neObj = (this instanceof Array) ? [] : {};
     for (var i in this) {
         if (i === 'clone') continue;
         if (this[i] && typeof this[i] === "object") {
